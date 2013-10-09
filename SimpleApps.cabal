@@ -1,0 +1,14 @@
+name:           SimpleApps
+version:        0.1
+cabal-version:  >=1.2
+build-type:     Simple
+author:         Koehler
+
+executable ClearGenFiles
+  hs-source-dirs:  src
+  main-is:         ClearGenFiles.hs
+  build-depends:   
+                   base >= 4,
+                   misc-tools,
+                   directory
+  ghc-options:     -Wall
