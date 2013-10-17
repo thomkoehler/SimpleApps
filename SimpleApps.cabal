@@ -12,3 +12,17 @@ executable ClearGenFiles
                    misc-tools,
                    directory
   ghc-options:     -Wall
+
+
+executable FindFile
+  hs-source-dirs:  src
+  main-is:         FindFile.hs
+  build-depends:   
+                   base >= 4,
+                   misc-tools,
+                   bytestring,
+                   resourcet,
+                   transformers,
+                   stringsearch,
+                   filepath
+  ghc-options:     -Wall
