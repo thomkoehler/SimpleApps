@@ -1,7 +1,5 @@
 ------------------------------------------------------------------------------------------------------------------------
 
- {-# LANGUAGE OverloadedStrings #-}
-
 module Main where
 
 import qualified Data.ByteString as B
@@ -13,6 +11,9 @@ import Data.ByteString.Search(breakOn)
 import Control.Monad(forM_, when)
 import System.Directory(getDirectoryContents, doesDirectoryExist)
 import System.FilePath((</>))
+import System.Environment(getArgs)
+import System.Console.GetOpt
+import System.FilePath.Glob
 
 ------------------------------------------------------------------------------------------------------------------------
 
@@ -23,13 +24,26 @@ currBufferSize = 10240
 
 main :: IO ()
 main = do
-   foreachFile "..//" (fileFun "class") True
-   return ()  
+   args <- getArgs
+   options <- getOptions args
+   foreachFile (optTopDir options) (fileFun options) (optRecursive options) 
+   return ()
+   
+
+fileFun :: Options -> FilePath -> IO Bool
+fileFun options file = do
+   mt <- matchText
+   when (matchPattern && mt) (putStrLn file)
    where
-      fileFun :: B.ByteString -> FilePath -> IO ()
-      fileFun text fileName = do
-         found <- textFindInFile text currBufferSize fileName
-         when found $ putStrLn fileName
+      matchPattern :: Bool
+      matchPattern = case optFilePattern options of
+         Nothing -> True
+         Just pattern -> match pattern file
+      
+      matchText :: IO Bool   
+      matchText = case optText options of
+         Nothing -> return True
+         Just text -> textFindInFile (B.pack text) currBufferSize file
 
 
 textFindInFile :: B.ByteString -> Int -> FilePath -> IO Bool 
@@ -70,4 +84,39 @@ foreachFile topdir fileFun recursive = do
          then foreachFile path fileFun True
          else fileFun path
       
+------------------------------------------------------------------------------------------------------------------------
+
+data Options = Options
+   {
+      optTopDir :: FilePath,
+      optRecursive :: Bool,
+      optText :: Maybe String,
+      optFilePattern :: Maybe Pattern
+   }
+
+
+options :: [OptDescr (Options -> IO Options)]
+options = 
+   [
+      Option "r" ["recursive"]  (NoArg (\opt -> return opt { optRecursive = True })) "search recursive",
+      Option "t" ["text"] (ReqArg (\arg opt -> return opt { optText = Just arg }) "text") "search text",
+      Option "p" ["pattern"] (ReqArg (\arg opt -> return opt { optFilePattern = (Just . compile) arg }) "pattern") "file pattern"
+   ]
+
+defaultOptions :: FilePath -> Options
+defaultOptions topDir = Options topDir False Nothing Nothing
+
+header :: String
+header = "Usage: FindFile <dir> [OPTION...]"
+
+
+getOptions :: [String] -> IO Options
+getOptions args
+   | null args = error $ usageInfo header options
+   | otherwise =
+   case getOpt RequireOrder options (tail args) of
+      (flags, [], []) -> foldl (>>=) (return (defaultOptions (head args))) flags
+      (_, nonOpts, []) -> error $ "unrecognized arguments: " ++ unwords nonOpts
+      (_, _, msgs) -> error $ concat msgs ++ usageInfo header options
+
 ------------------------------------------------------------------------------------------------------------------------

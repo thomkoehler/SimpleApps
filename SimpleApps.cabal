@@ -24,5 +24,6 @@ executable FindFile
                    resourcet,
                    transformers,
                    stringsearch,
-                   filepath
+                   filepath,
+                   Glob >=0.7.2 && <0.8
   ghc-options:     -Wall
