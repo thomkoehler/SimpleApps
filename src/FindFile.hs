@@ -2,13 +2,16 @@
 
 module Main where
 
+import Prelude hiding(catch)
+
 import qualified Data.ByteString as B
-import Data.ByteString.Char8()
+import Data.ByteString.Char8(pack)
 import Control.Monad.Trans.Resource(runResourceT, allocate, release)
 import Control.Monad.Trans.Class(lift)
 import System.IO(openFile, hClose, IOMode(ReadMode), hIsEOF, hSeek, SeekMode(RelativeSeek))
 import Data.ByteString.Search(breakOn)
 import Control.Monad(forM_, when)
+import  Control.Exception(catch)
 import System.Directory(getDirectoryContents, doesDirectoryExist)
 import System.FilePath((</>))
 import System.Environment(getArgs)
@@ -30,20 +33,26 @@ main = do
    return ()
    
 
-fileFun :: Options -> FilePath -> IO Bool
-fileFun options file = do
-   mt <- matchText
-   when (matchPattern && mt) (putStrLn file)
+fileFun :: Options -> FilePath -> IO ()
+fileFun options file =
+   (
+      do
+         mt <- matchText
+         when (matchPattern && mt) (putStrLn file)
+   )
+   `catch` 
+   (
+      putStrLn . show
+   )
+   
    where
-      matchPattern :: Bool
       matchPattern = case optFilePattern options of
          Nothing -> True
          Just pattern -> match pattern file
       
-      matchText :: IO Bool   
       matchText = case optText options of
          Nothing -> return True
-         Just text -> textFindInFile (B.pack text) currBufferSize file
+         Just text -> textFindInFile (pack text) currBufferSize file
 
 
 textFindInFile :: B.ByteString -> Int -> FilePath -> IO Bool 
@@ -74,15 +83,15 @@ textFindInFile text bufferSize fileName = runResourceT $ do
      
       
 foreachFile :: FilePath -> (FilePath -> IO ()) -> Bool -> IO ()
-foreachFile topdir fileFun recursive = do
+foreachFile topdir fun recursive = do
    names <- getDirectoryContents topdir
    let properNames = filter (`notElem` [".", ".."]) names
    forM_ properNames $ \name -> do
       let path = topdir </> name
       isDirectory <- doesDirectoryExist path
       if isDirectory && recursive
-         then foreachFile path fileFun True
-         else fileFun path
+         then foreachFile path fun True
+         else fun path
       
 ------------------------------------------------------------------------------------------------------------------------
 
@@ -95,12 +104,12 @@ data Options = Options
    }
 
 
-options :: [OptDescr (Options -> IO Options)]
-options = 
+optDescr :: [OptDescr (Options -> IO Options)]
+optDescr = 
    [
       Option "r" ["recursive"]  (NoArg (\opt -> return opt { optRecursive = True })) "search recursive",
-      Option "t" ["text"] (ReqArg (\arg opt -> return opt { optText = Just arg }) "text") "search text",
-      Option "p" ["pattern"] (ReqArg (\arg opt -> return opt { optFilePattern = (Just . compile) arg }) "pattern") "file pattern"
+      Option "t" ["text"] (ReqArg (\arg opt -> return opt { optText = Just arg }) "<text>") "search text",
+      Option "p" ["pattern"] (ReqArg (\arg opt -> return opt { optFilePattern = (Just . compile) arg }) "<pattern>") "file pattern"
    ]
 
 defaultOptions :: FilePath -> Options
@@ -112,11 +121,11 @@ header = "Usage: FindFile <dir> [OPTION...]"
 
 getOptions :: [String] -> IO Options
 getOptions args
-   | null args = error $ usageInfo header options
+   | null args = error $ usageInfo header optDescr
    | otherwise =
-   case getOpt RequireOrder options (tail args) of
+   case getOpt RequireOrder optDescr (tail args) of
       (flags, [], []) -> foldl (>>=) (return (defaultOptions (head args))) flags
       (_, nonOpts, []) -> error $ "unrecognized arguments: " ++ unwords nonOpts
-      (_, _, msgs) -> error $ concat msgs ++ usageInfo header options
+      (_, _, msgs) -> error $ concat msgs ++ usageInfo header optDescr
 
 ------------------------------------------------------------------------------------------------------------------------
