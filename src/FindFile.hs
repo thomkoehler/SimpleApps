@@ -17,8 +17,6 @@ import System.FilePath.Posix(takeFileName)
 import System.Console.GetOpt
 import System.FilePath.Glob
 
-import Debug.Trace
-
 ------------------------------------------------------------------------------------------------------------------------
 
 currBufferSize :: Int
@@ -30,7 +28,6 @@ main :: IO ()
 main = do
    args <- getArgs
    options <- getOptions args
-   putStrLn $ show options
    foreachFile (optTopDir options) (fileFun options) (optRecursive options) 
    return ()
    
