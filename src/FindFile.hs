@@ -2,8 +2,6 @@
 
 module Main where
 
-import Prelude hiding(catch)
-
 import qualified Data.ByteString as B
 import Data.ByteString.Char8(pack)
 import Control.Monad.Trans.Resource(runResourceT, allocate, release)
@@ -11,17 +9,20 @@ import Control.Monad.Trans.Class(lift)
 import System.IO(openFile, hClose, IOMode(ReadMode), hIsEOF, hSeek, SeekMode(RelativeSeek))
 import Data.ByteString.Search(breakOn)
 import Control.Monad(forM_, when)
-import  Control.Exception(catch)
+import Control.Exception(catch, SomeException)
 import System.Directory(getDirectoryContents, doesDirectoryExist)
 import System.FilePath((</>))
 import System.Environment(getArgs)
+import System.FilePath.Posix(takeFileName)
 import System.Console.GetOpt
 import System.FilePath.Glob
+
+import Debug.Trace
 
 ------------------------------------------------------------------------------------------------------------------------
 
 currBufferSize :: Int
-currBufferSize = 10240
+currBufferSize = 1024 * 1024
 
 ------------------------------------------------------------------------------------------------------------------------
 
@@ -29,6 +30,7 @@ main :: IO ()
 main = do
    args <- getArgs
    options <- getOptions args
+   putStrLn $ show options
    foreachFile (optTopDir options) (fileFun options) (optRecursive options) 
    return ()
    
@@ -42,17 +44,21 @@ fileFun options file =
    )
    `catch` 
    (
-      putStrLn . show
+      \e -> putStrLn ("Error: " ++ show (e :: SomeException))
    )
    
    where
       matchPattern = case optFilePattern options of
          Nothing -> True
-         Just pattern -> match pattern file
+         Just pattern -> match pattern $ takeFileName $ map bsToSl file
       
       matchText = case optText options of
          Nothing -> return True
          Just text -> textFindInFile (pack text) currBufferSize file
+         
+      bsToSl c 
+         | c == '\\' = '/'
+         | otherwise = c
 
 
 textFindInFile :: B.ByteString -> Int -> FilePath -> IO Bool 
@@ -102,6 +108,7 @@ data Options = Options
       optText :: Maybe String,
       optFilePattern :: Maybe Pattern
    }
+   deriving Show
 
 
 optDescr :: [OptDescr (Options -> IO Options)]
