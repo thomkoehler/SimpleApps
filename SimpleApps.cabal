@@ -19,7 +19,7 @@ executable FindFile
   main-is:         FindFile.hs
   build-depends:   
                    base >= 4,
-                   misc-tools,
+                   misc-tools >= 1.0.2,
                    bytestring,
                    resourcet,
                    transformers,
