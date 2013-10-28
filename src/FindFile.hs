@@ -2,6 +2,9 @@
 
 module Main where
 
+
+import Prelude hiding(catch)
+
 import Data.ByteString.Char8(pack)
 import Control.Monad(forM_, when)
 import Control.Exception(catch, SomeException)
