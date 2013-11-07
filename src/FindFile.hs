@@ -8,7 +8,7 @@ import Prelude hiding(catch)
 import Data.ByteString.Char8(pack)
 import Control.Monad(forM_, when)
 import Control.Exception(catch, SomeException)
-import System.Directory(getDirectoryContents, doesDirectoryExist)
+import System.Directory(getDirectoryContents, doesDirectoryExist, canonicalizePath)
 import System.FilePath((</>))
 import System.Environment(getArgs)
 import System.FilePath.Posix(takeFileName)
@@ -35,9 +35,14 @@ main = do
 fileFun :: Options -> FilePath -> IO ()
 fileFun options file =
    (
-      do
-         mt <- matchText
-         when (matchPattern && mt) (putStrLn file)
+      if matchPattern
+         then do
+            mt <- matchText
+            when mt $ do
+               filePath <- canonicalizePath file
+               putStrLn filePath
+         else
+            return ()
    )
    `catch` 
    (
