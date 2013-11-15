@@ -2,12 +2,9 @@
 
 module Main where
 
-
-import Prelude hiding(catch)
-
 import Data.ByteString.Char8(pack)
 import Control.Monad(forM_, when)
-import Control.Exception(catch, SomeException)
+import Control.Exception(catch, IOException)
 import System.Directory(getDirectoryContents, doesDirectoryExist, canonicalizePath)
 import System.FilePath((</>))
 import System.Environment(getArgs)
@@ -46,7 +43,7 @@ fileFun options file =
    )
    `catch` 
    (
-      \e -> putStrLn ("Error: " ++ show (e :: SomeException))
+      \e -> putStrLn ("Error: " ++ show (e :: IOException))
    )
    
    where
