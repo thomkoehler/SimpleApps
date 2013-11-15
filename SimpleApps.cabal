@@ -12,7 +12,7 @@ executable ClearGenFiles
                    misc-tools,
                    directory
   ghc-options:     -Wall
-
+  other-modules:   NMBuild
 
 executable FindFile
   hs-source-dirs:  src
@@ -27,3 +27,11 @@ executable FindFile
                    filepath,
                    Glob >=0.7.2 && <0.8
   ghc-options:     -Wall
+  other-modules:   NMBuild
+
+executable NMBuild
+  build-depends:   base >= 4, text, shelly
+  hs-source-dirs:  src
+  ghc-options:     -Wall -rtsopts
+  main-is:         NMBuild.hs
+
