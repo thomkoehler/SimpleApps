@@ -55,6 +55,8 @@ main = shelly $ do
    args <- liftIO getArgs
    let targs = map pack args
    
+   liftIO $ putStrLn $ show targs
+   
    let buildDir = tfs </> project </> ver
    cd buildDir
    
@@ -65,7 +67,10 @@ main = shelly $ do
 
 build :: [Text] -> Text -> Sh ()
 build args buildDef = do
-   run_ "build.bat" $ (toStrict buildDef) : (map toStrict args) 
+   let
+      properArgs = (toStrict buildDef) : (map toStrict args)
+   liftIO $ putStrLn $ show properArgs       
+   run_ "build.bat" properArgs 
 
   
 getEnv :: Text -> Text -> Sh String

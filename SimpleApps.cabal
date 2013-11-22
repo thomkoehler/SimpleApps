@@ -1,3 +1,4 @@
+
 name:           SimpleApps
 version:        0.1
 cabal-version:  >=1.2
@@ -11,8 +12,7 @@ executable ClearGenFiles
                    base >= 4,
                    misc-tools,
                    directory
-  ghc-options:     -Wall
-  other-modules:   NMBuild
+  ghc-options:     -Wall -rtsopts -O2
 
 executable FindFile
   hs-source-dirs:  src
@@ -26,12 +26,11 @@ executable FindFile
                    stringsearch,
                    filepath,
                    Glob >=0.7.2 && <0.8
-  ghc-options:     -Wall
-  other-modules:   NMBuild
+  ghc-options:     -Wall -rtsopts -O2
 
 executable NMBuild
   build-depends:   base >= 4, text, shelly
   hs-source-dirs:  src
-  ghc-options:     -Wall -rtsopts
+  ghc-options:     -Wall -rtsopts -O2
   main-is:         NMBuild.hs
 
