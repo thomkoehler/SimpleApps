@@ -1,16 +1,8 @@
-
 ------------------------------------------------------------------------------------------------------------------------
-
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ExtendedDefaultRules #-}
-{-# OPTIONS_GHC -fno-warn-type-defaults #-}
 
 module Main where
 
-import Prelude hiding(FilePath)
-import Shelly
-import Data.Maybe
-import Data.Text.Lazy hiding(map)
+import Shellish
 import Control.Monad
 import System.Environment(getArgs)
 
@@ -20,7 +12,7 @@ project :: FilePath
 project = "NetworkManager"
 
 
-buildDefs :: [Text]
+buildDefs :: [String]
 buildDefs =
    [
       "Version",
@@ -48,34 +40,38 @@ buildDefs =
 
 
 main :: IO ()
-main = shelly $ do
+main = shellish $ do
    ver <- getEnv "ver" "dev"
    tfs <- getEnv "tfs" "D:/Projects"
    
    args <- liftIO getArgs
-   let targs = map pack args
    
-   liftIO $ putStrLn $ show targs
-   
+  
    let buildDir = tfs </> project </> ver
    cd buildDir
    
-   forM_ buildDefs $ build targs
+   forM_ buildDefs $ build args
    return ()
 
 ------------------------------------------------------------------------------------------------------------------------
 
-build :: [Text] -> Text -> Sh ()
-build args buildDef = do
-   let
-      properArgs = (toStrict buildDef) : (map toStrict args)
-   liftIO $ putStrLn $ show properArgs       
-   run_ "build.bat" properArgs 
+build :: [String] -> String -> ShIO ()
+build args buildDef = do 
+   _ <- shell "build.bat" $ buildDef : args
+   return ()  
 
+
+shell :: String -> [String] -> ShIO String
+shell cmd args = do
+   comspec <- getenv "ComSpec"
+   run comspec $ "/C" : cmd : args
+ 
   
-getEnv :: Text -> Text -> Sh String
+getEnv :: String -> String -> ShIO String
 getEnv name def = do
-   maybeValue <- get_env $ toStrict name
-   return $ unpack $ fromStrict $ fromMaybe (toStrict def) maybeValue
-   
+   val <- getenv name
+   if null val
+      then return def
+      else return val
+
 ------------------------------------------------------------------------------------------------------------------------
