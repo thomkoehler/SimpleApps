@@ -29,7 +29,7 @@ executable FindFile
   ghc-options:     -Wall -rtsopts -O2
 
 executable NMBuild
-  build-depends:   base >= 4, text, shellish
+  build-depends:   base >= 4, text, Shell
   hs-source-dirs:  src
   ghc-options:     -Wall -rtsopts -O2
   main-is:         NMBuild.hs

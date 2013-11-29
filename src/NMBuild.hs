@@ -2,9 +2,11 @@
 
 module Main where
 
-import Shellish
+import Shell
 import Control.Monad
 import System.Environment(getArgs)
+import System.FilePath
+import Control.Monad.IO.Class
 
 ------------------------------------------------------------------------------------------------------------------------
 
@@ -40,9 +42,9 @@ buildDefs =
 
 
 main :: IO ()
-main = shellish $ do
-   ver <- getEnv "ver" "dev"
-   tfs <- getEnv "tfs" "D:/Projects"
+main = shell $ do
+   ver <- getEnv_ "ver" "dev"
+   tfs <- getEnv_ "tfs" "D:/Projects"
    
    args <- liftIO getArgs
    
@@ -52,26 +54,12 @@ main = shellish $ do
    
    forM_ buildDefs $ build args
    return ()
-
+   
 ------------------------------------------------------------------------------------------------------------------------
 
-build :: [String] -> String -> ShIO ()
+build :: [String] -> String -> Shell ()
 build args buildDef = do 
-   _ <- shell "build.bat" $ buildDef : args
+   _ <- sh "build.bat" $ buildDef : args
    return ()  
-
-
-shell :: String -> [String] -> ShIO String
-shell cmd args = do
-   comspec <- getenv "ComSpec"
-   run comspec $ "/C" : cmd : args
- 
-  
-getEnv :: String -> String -> ShIO String
-getEnv name def = do
-   val <- getenv name
-   if null val
-      then return def
-      else return val
 
 ------------------------------------------------------------------------------------------------------------------------
