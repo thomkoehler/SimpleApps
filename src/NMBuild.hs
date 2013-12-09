@@ -14,7 +14,7 @@ import Text.Printf
 project :: FilePath
 project = "NetworkManager"
 
-installDir = "D:\\NMInstall_%s_%s"
+installDir = "D:\\NMInstall\\%s\\%s\\%s"
 
 buildDefs :: [String]
 buildDefs =
@@ -51,11 +51,12 @@ main = shell $ do
    args <- liftIO getArgs
    let po = poFromArguments args
    
-   setEnv "NM_INSTALL" $ printf installDir (show (poPlatform po)) (show (poConfig po))
+   setEnv "NM_INSTALL" $ printf installDir ver (show (poConfig po)) (show (poPlatform po))
 
---   echo "ver: $ver"
---   echo "tfs: $tfs"
---   echo "NM_INSTALL: $NM_INSTALL"
+   echo "ver: $ver"
+   echo "tfs: $tfs"
+   echo "NM_INSTALL: $NM_INSTALL"
+   echo $ show po
   
    let buildDir = tfs </> project </> ver
    cd buildDir
