@@ -15,10 +15,15 @@ project :: FilePath
 project = "NetworkManager"
 
 installDir = "D:\\NMInstall\\%s\\%s\\%s"
+theGuardDir = "C:\\Program Files (x86)\\REALTECH\\theGuard!"
 
 buildDefs :: [String]
 buildDefs =
    [
+      "SQLite",
+      "Xerces",
+      "log4cxx",
+      "log4net",
       "Version",
       "Helper",
       "NMDBServerBase",
@@ -29,17 +34,19 @@ buildDefs =
       "NMDBServer",
       "NMTextCreator",
       "ProcessAdmin",
---      "ReportingtypeCompression",
       "NMDBCOMServiceCenterNMCopy",
---      "CopyRTL",
       "CommonTools",
---      "EventServerClient",
---      "Scheduler",
---      "tGProtocolLib",
       "nmstring",
       "SharedBuffer",
       "SharedBufferExtension",
-      "NMDBServerAssistantLayer"
+      "NMDBServerAssistantLayer",
+      "ProcessAdminPlugins",
+      "ScheduleServer",
+      "RequestServerClient",
+      "MultiSiteCommon",
+      "RequestServer",
+      "MultiSiteServer",
+      "DBAdmin"
    ]
 
   
@@ -51,18 +58,27 @@ main = shell $ do
    args <- liftIO getArgs
    let po = poFromArguments args
    
-   setEnv "NM_INSTALL" $ printf installDir ver (show (poConfig po)) (show (poPlatform po))
+   let instDir = printf installDir ver (show (poConfig po)) (show (poPlatform po))
+   setEnv "NM_INSTALL" instDir
 
+   echo "BCBLIB: $BCBLIB"
    echo "ver: $ver"
    echo "tfs: $tfs"
    echo "NM_INSTALL: $NM_INSTALL"
    echo $ show po
-  
-   let buildDir = tfs </> project </> ver
-   cd buildDir
+
+   if poCopy po
+      then copyAll po instDir
+      else buildAll tfs ver args
+      
+   where
    
-   forM_ buildDefs $ build args
-   return ()
+      buildAll tfs ver args = do
+         let buildDir = tfs </> project </> ver
+         cd buildDir
+         forM_ buildDefs $ build args
+
+      copyAll po instDir = undefined
    
 ------------------------------------------------------------------------------------------------------------------------
 
@@ -78,7 +94,8 @@ data Platform = X86 | X64 deriving Show
 data ProgramOptions = ProgramOptions
    {
       poConfig :: Config,
-      poPlatform :: Platform 
+      poPlatform :: Platform ,
+      poCopy :: Bool
    }
    deriving Show
 
@@ -86,12 +103,20 @@ data ProgramOptions = ProgramOptions
 poFromArguments :: [String] -> ProgramOptions
 poFromArguments args = foldl fun defPO args
    where
-      defPO = ProgramOptions Release X86
+      defPO = ProgramOptions Release X86 False
       fun po arg =
          case arg of
-            "-dbg" -> po { poConfig = Debug }
-            "-x64" -> po { poPlatform = X64 }
-            _      -> po
+            "-dbg"  -> po { poConfig = Debug }
+            "-x64"  -> po { poPlatform = X64 }
+            "-copy" -> po { poCopy = True }
+            _       -> po
 
-  
+poToBinDir :: ProgramOptions -> FilePath
+poToBinDir po = case (poConfig po, poPlatform po) of
+   (Release, X86) -> "bin" 
+   (Debug, X86)   -> "bin_Debug"
+   (Release, X64) -> "bin64" 
+   (Debug, X64)   -> "bin64_Debug"
+   _              -> error "ProgramOptions not supported"
+   
 ------------------------------------------------------------------------------------------------------------------------
