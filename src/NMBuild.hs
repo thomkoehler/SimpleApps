@@ -60,6 +60,7 @@ main = shell $ do
    
    let instDir = printf installDir ver (show (poConfig po)) (show (poPlatform po))
    setEnv "NM_INSTALL" instDir
+   setEnv "BCBLIB" $ "D:\\Libraries_" ++ ver
 
    echo "BCBLIB: $BCBLIB"
    echo "ver: $ver"
