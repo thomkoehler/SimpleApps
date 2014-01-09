@@ -7,11 +7,18 @@ module Main where
 
 import Data.Time.Clock(UTCTime)
 import System.Directory(getDirectoryContents, doesFileExist, doesDirectoryExist, getModificationTime)
-import System.FilePath((</>))
+import System.FilePath((</>), takeFileName, takeDirectory)
 import Data.List(intersect, (\\))
-import Control.Monad(forM, forM_, when)
+import Control.Monad(forM, filterM)
 import System.IO(hClose, hFileSize, IOMode(ReadMode), openFile)
 import Control.Exception.Base(bracket)
+import Data.Sequence(Seq, fromList)
+import Data.Foldable(forM_)
+import Data.Traversable(forM)
+import Control.Monad((>=>))
+
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as C
 
 ------------------------------------------------------------------------------------------------------------------------
 
@@ -25,7 +32,7 @@ main = do
 
 data FileInfo = FileInfo
    {
-      fiDir :: !FilePath,
+      fiDir :: {-# UNPACK #-} !B.ByteString,
       fiModTime :: {-# UNPACK #-} !UTCTime,
       fiFileSize :: !Integer
    }
@@ -35,45 +42,45 @@ data FileInfo = FileInfo
 data CompResult 
    = BothDirResult
       {
-         bdrSrcPath :: !FilePath,
-         bdrDestPath :: !FilePath
+         bdrSrcPath :: {-# UNPACK #-} !B.ByteString,
+         bdrDestPath :: {-# UNPACK #-} !B.ByteString
       }
    | OnlySrcDirResult
       {
-         osdrPath :: !FilePath
+         osdrPath :: {-# UNPACK #-} !B.ByteString
       }
       
    | OnlyDestDirResult
       {
-         oddrPath :: !FilePath
+         oddrPath :: {-# UNPACK #-} !B.ByteString
       }
    | OnlySrcFileResult
       {
-         osfrFileName :: !FilePath,
-         osfrFileInfo :: !FileInfo
+         osfrFileName :: {-# UNPACK #-} !B.ByteString,
+         osfrFileInfo :: {-# UNPACK #-} !FileInfo
       }
    | OnlyDestFileResult
       {
-         odfrFileName :: !FilePath,
-         odfrFileInfo :: !FileInfo
+         odfrFileName :: {-# UNPACK #-} !B.ByteString,
+         odfrFileInfo :: {-# UNPACK #-} !FileInfo
       }
    | BothFileResult
       {
-         bfrFileName :: !FilePath,
-         bfrSrcFileInfo :: !FileInfo,
-         bfrDestFileInfo :: !FileInfo
+         bfrFileName :: {-# UNPACK #-} !B.ByteString,
+         bfrSrcFileInfo :: {-# UNPACK #-} !FileInfo,
+         bfrDestFileInfo :: {-# UNPACK #-} !FileInfo
       }
       deriving(Show)
 
 
 printCompResult :: CompResult -> String
-printCompResult (BothDirResult src dest) = src ++ " <==> " ++ dest
-printCompResult (OnlySrcDirResult src) = src ++ " =>"
-printCompResult (OnlyDestDirResult dest) = "<= " ++ dest
-printCompResult (BothFileResult name _ _) = name
+printCompResult (BothDirResult src dest) = show src ++ " <==> " ++ show dest
+printCompResult (OnlySrcDirResult src) = show src ++ " =>"
+printCompResult (OnlyDestDirResult dest) = "<= " ++ show dest
+printCompResult (BothFileResult name _ _) = show name
 
 
-compDirs :: Bool -> FilePath -> FilePath -> IO [CompResult]
+compDirs :: Bool -> FilePath -> FilePath -> IO (Seq CompResult)
 compDirs recursive sDir dDir = do
    srcDirConts <- getDirectoryContents sDir
    destDirConts <- getDirectoryContents dDir
@@ -89,11 +96,10 @@ compDirs recursive sDir dDir = do
    srcResults <- getOnlyResult True onlySrcConts       
    destResults <- getOnlyResult False onlyDestConts
    
-  
-   return $ concat $ intersectResults ++ srcResults ++ destResults
+   return $ fromList $ concat $ intersectResults ++ srcResults ++ destResults
    
    where
-      getIntersectResults intersectConts = forM intersectConts $ \name -> do
+      getIntersectResults intersectConts = Control.Monad.forM intersectConts $ \name -> do
          let 
             srcFullName = sDir </> name   
             destFullName = dDir </> name
@@ -110,23 +116,38 @@ compDirs recursive sDir dDir = do
                destModTime <- getModificationTime destFullName
                destFileSize <- getFileSize destFullName
                return $ 
-                  [BothFileResult name (FileInfo sDir srcModTime srcFileSize) (FileInfo dDir destModTime destFileSize)]
+                  [
+                     BothFileResult 
+                        (C.pack name) 
+                        (FileInfo (C.pack sDir) srcModTime srcFileSize) 
+                        (FileInfo (C.pack dDir) destModTime destFileSize)
+                  ]
                
-            (False, True, False, True) -> return [BothDirResult srcFullName destFullName]
+            (False, True, False, True) -> return [BothDirResult (C.pack srcFullName) (C.pack destFullName)]
             
             (True, False, False, True) -> do
                srcModTime <- getModificationTime srcFullName
                srcFileSize <- getFileSize srcFullName
-               return [OnlySrcFileResult name (FileInfo sDir srcModTime srcFileSize), OnlyDestDirResult destFullName]
+               return 
+                  [
+                     OnlySrcFileResult 
+                        (C.pack name) 
+                        (FileInfo (C.pack sDir) srcModTime srcFileSize), OnlyDestDirResult (C.pack destFullName)
+                  ]
                
             (False, True, True, False) -> do
                destModTime <- getModificationTime destFullName
                destFileSize <- getFileSize destFullName
-               return [OnlyDestFileResult name (FileInfo dDir destModTime destFileSize), OnlySrcDirResult srcFullName]
+               return 
+                  [
+                     OnlyDestFileResult 
+                        (C.pack name) 
+                        (FileInfo (C.pack dDir) destModTime destFileSize), OnlySrcDirResult (C.pack srcFullName)
+                  ]
                
             _ -> error "Fatal error: The files system entry can be either a file or a directory."
       
-      getOnlyResult genSrc names = forM names $ \name -> do
+      getOnlyResult genSrc names = Control.Monad.forM names $ \name -> do
          let 
             fullName = sDir </> name
          
@@ -138,12 +159,12 @@ compDirs recursive sDir dDir = do
                modTime <- getModificationTime fullName
                fileSize <- getFileSize fullName
                if genSrc
-                  then return [OnlySrcFileResult name (FileInfo sDir modTime fileSize)]
-                  else return [OnlyDestFileResult name (FileInfo sDir modTime fileSize)] 
+                  then return [OnlySrcFileResult (C.pack name) (FileInfo (C.pack sDir) modTime fileSize)]
+                  else return [OnlyDestFileResult (C.pack name) (FileInfo (C.pack sDir) modTime fileSize)] 
             
             (False, True) -> if genSrc
-               then return [OnlySrcDirResult fullName]
-               else return [OnlyDestDirResult fullName]
+               then return [OnlySrcDirResult (C.pack fullName)]
+               else return [OnlyDestDirResult (C.pack fullName)]
                
             _ -> error "Fatal error: The files system entry can be either a file or a directory."
       
@@ -153,9 +174,45 @@ compDirs recursive sDir dDir = do
       extractCompResultDirs _ = []
       
       extractAllCompResultDirs :: [CompResult] -> [FilePath]
-      extractAllCompResultDirs = concat . map extractCompResultDirs 
-       
-      getFileSize :: FilePath -> IO Integer
-      getFileSize path = bracket (openFile path ReadMode) hClose hFileSize
+      extractAllCompResultDirs = map C.unpack . concat . map extractCompResultDirs 
+
+
+getFileSize :: FilePath -> IO Integer
+getFileSize path = bracket (openFile path ReadMode) hClose hFileSize
    
+
+createOnlyFileResult :: Bool -> FilePath -> IO CompResult
+createOnlyFileResult isSrc file = do
+   modTime <- getModificationTime file
+   fileSize <- getFileSize file
+   let
+      fileName = takeFileName file
+      dir = takeDirectory file 
+   return $ if isSrc
+      then OnlySrcFileResult (C.pack fileName) (FileInfo (C.pack dir) modTime fileSize)   
+      else OnlyDestFileResult (C.pack fileName) (FileInfo (C.pack dir) modTime fileSize)
+
+
+compOnlyDir :: Bool -> FilePath -> IO (Seq CompResult)
+compOnlyDir isSrc dir = do
+   dirConts <- getDirectoryContents dir
+   let 
+      propFile file = file /= "." && file /= ".."
+      propDirConts = map (dir </>) . filter propFile $ dirConts
+   
+   fileResults <- filterM doesFileExist >=> mapM (createOnlyFileResult isSrc) $ propDirConts 
+   dirs <- filterM doesDirectoryExist propDirConts
+   Data.Traversable.forM (fromList dirs) $ \dir -> do
+      
+   
+   return $ fromList fileResults    
+      
+         
+   
+   
+      
+  
+
+      
+
 ------------------------------------------------------------------------------------------------------------------------
