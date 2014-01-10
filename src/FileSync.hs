@@ -72,12 +72,75 @@ data CompResult
       }
       deriving(Show)
 
-
 printCompResult :: CompResult -> String
 printCompResult (BothDirResult src dest) = show src ++ " <==> " ++ show dest
 printCompResult (OnlySrcDirResult src) = show src ++ " =>"
 printCompResult (OnlyDestDirResult dest) = "<= " ++ show dest
 printCompResult (BothFileResult name _ _) = show name
+
+
+data Result 
+   = DirResult
+      {
+         drSrcDir :: FilePath,
+         drDestDir :: FilePath
+      }
+   | SrcDirResult
+      {
+         sdrDir :: FilePath
+      }
+   | DestDirResult
+      {
+         ddrDir :: FilePath
+      }
+   | FileResult
+      {
+         frSrcFile :: FilePath,
+         frDesFile :: FilePath
+      }
+   | SrcFileResult
+      {
+         sfrFile :: FilePath
+      }    
+   | DestFileResult
+      {
+         dfrFile :: FilePath
+      }
+   deriving(Show)
+
+
+
+compDirsIter_ :: Bool -> FilePath -> FilePath -> (Result -> IO ()) -> IO ()
+compDirsIter_ recursive sDir dDir iterFun = do
+   iterFun $ DirResult sDir dDir
+   srcDirConts <- getDirectoryContents sDir
+   destDirConts <- getDirectoryContents dDir
+   let 
+      propFile file = file /= "." && file /= ".."
+      propSrcDirConts = filter propFile srcDirConts
+      propDestDirConts = filter propFile destDirConts
+      intersectConts = intersect propSrcDirConts propDestDirConts
+      onlySrcConts = propSrcDirConts \\ propDestDirConts
+      onlyDestConts = propDestDirConts \\ propSrcDirConts
+      
+   compIntersectResults intersectConts
+   
+   where
+      compIntersectResults intersectConts = Control.Monad.forM intersectConts $ \name -> do             
+         let 
+            srcFullName = sDir </> name   
+            destFullName = dDir </> name
+            
+         isSrcFile <- doesFileExist srcFullName
+         isSrcDir <- doesDirectoryExist srcFullName
+         isDestFile <- doesFileExist destFullName
+         isDestDir <- doesDirectoryExist destFullName
+         
+         case (isSrcFile, isSrcDir, isDestFile, isDestDir) of
+            (True, False, True, False) -> iterFun $ FileResult srcFullName destFullName
+            (True, False, False, True) -> undefined
+            (False, True, True, False) -> undefined
+            _ -> error "Fatal error: The files system entry can be either a file or a directory."
 
 
 compDirs :: Bool -> FilePath -> FilePath -> IO (Seq CompResult)
