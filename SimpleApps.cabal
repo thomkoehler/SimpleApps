@@ -39,4 +39,9 @@ executable FindFile
                    Glob >=0.7.2 && <0.8
   ghc-options:     -Wall -rtsopts -O2
 
+executable  YesodBooks
+   hs-source-dirs:  src
+   main-is:         YesodBooks.hs
+   build-depends:   base >= 4, yesod, persistent-template, persistent-sqlite, persistent, monad-logger, conduit
+   ghc-options:     -Wall -rtsopts -O2
 
