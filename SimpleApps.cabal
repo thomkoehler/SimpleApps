@@ -4,6 +4,13 @@ cabal-version:  >=1.2
 build-type:     Simple
 author:         Koehler
 
+
+executable ScanInclude
+  build-depends:   base >= 4, binary, attoparsec
+  hs-source-dirs:  src
+  ghc-options:     -Wall -rtsopts -O2
+  main-is:         ScanInclude.hs
+
 executable ClearGenFiles
   hs-source-dirs:  src
   main-is:         ClearGenFiles.hs
@@ -44,4 +51,5 @@ executable  YesodBooks
    main-is:         YesodBooks.hs
    build-depends:   base >= 4, yesod, persistent-template, persistent-sqlite, persistent, monad-logger, conduit
    ghc-options:     -Wall -rtsopts -O2
+
 
