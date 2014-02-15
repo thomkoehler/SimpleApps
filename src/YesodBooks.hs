@@ -78,7 +78,7 @@ getBooksR = defaultLayout [whamlet|Hello Books!|]
 
 main :: IO ()
 main = do
-   let config = SqliteConf ":memory:" 1
+   let config = SqliteConf "books.db" 1
    pool <- createPoolConfig config
    runNoLoggingT $ runResourceT $ flip runSqlPool pool $ do
       runMigration migrateAll
