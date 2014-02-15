@@ -1,6 +1,10 @@
 #ifndef _CinemaOTNode_H_
 #define _CinemaOTNode_H_
 
+
+
+#  define TEST_0 "0"
+
 namespace CINEMA
 {
    // Address types (O_ADDRESS | P_TYPE)
@@ -1138,9 +1142,9 @@ namespace CINEMA
    enum PTS //ProvisioningTask-Status   O_PROVISIONING_TASK|P_STATUS
    {
       PTS_ADDED = 0, //angelegt
-      PTS_CHANGED = 1, //geändert
+      PTS_CHANGED = 1, //geï¿½ndert
       PTS_APPROVED = 2, //genehmigt
-      PTS_FULFILLED = 3, //durchgeführt
+      PTS_FULFILLED = 3, //durchgefï¿½hrt
       PTS_DECLINED = 4, // abgelehnt
       PTS_TEST = 5,
       PTS_REVIEW = 6,
