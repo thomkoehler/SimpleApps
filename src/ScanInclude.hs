@@ -27,19 +27,6 @@ import System.IO(stdout)
 main :: IO ()
 main = conduitTest
 
-   
-sinkTest :: IO ()
-sinkTest = do
-   (SinkResult _ nameValues) <-runResourceT $ 
-      sourceFile "CinemaOTNode.h" 
-      $$ lines 
-      =$ parserSink
-      
-   forM_ nameValues $ \(name, value) -> do
-      Data.ByteString.putStr name
-      Prelude.putStr ": "
-      Data.ByteString.putStrLn value
-
 
 conduitTest :: IO ()
 conduitTest = do
@@ -48,9 +35,8 @@ conduitTest = do
       $$ lines 
       =$ parserConduit
       =$ sinkHandle stdout
-  
 
-
+   
 parserConduit :: Monad m => Conduit ByteString m ByteString
 parserConduit = concatMapAccum step Map.empty
    where
@@ -58,25 +44,6 @@ parserConduit = concatMapAccum step Map.empty
          Done _ (StringDefine name value) -> (Map.insert name value defines, [])   
          Done _ (PairDef name value)      -> (defines, [name <> pack ": " <> value <> pack "\n"])
          _                                -> (defines, [])
-
-
-data SinkResult = SinkResult 
-   {
-      srDefines :: Map.Map ByteString ByteString,
-      srNameValues :: [(ByteString, ByteString)]
-   }
-
-
-parserSink :: Monad m => Sink ByteString m SinkResult
-parserSink = fold step emptySinkResult
-   where
-      emptySinkResult = SinkResult Map.empty []
-   
-      step prevSinkResult@(SinkResult defines nameValues) line = 
-         case parse (parseLine defines) line of
-            Done _ (StringDefine name value) -> prevSinkResult { srDefines =  Map.insert name value defines }
-            Done _ (PairDef name value)      -> prevSinkResult { srNameValues = (name, value) : nameValues }
-            _                                -> prevSinkResult
 
 
 data ParseResult 
@@ -138,21 +105,44 @@ string_ str = do
    return ()
 
 
-toChar :: Word8 -> Char
-toChar = C.chr . fromIntegral
-
-
 ascii :: Char -> Word8
 ascii = fromIntegral . C.ord
 
 ------------------------------------------------------------------------------------------------------------------------
 
-{--
+toChar :: Word8 -> Char
+toChar = C.chr . fromIntegral
 
-numberLine :: Monad m => Conduit ByteString m ByteString
-numberLine = concatMapAccum step 0 where
-  format input lno = pack (show lno) <> pack " " <> input <> pack "\n"
-  step input lno = (lno + 1, ["Hallo\n"])
 
---}
+sinkTest :: IO ()
+sinkTest = do
+   (SinkResult _ nameValues) <-runResourceT $ 
+      sourceFile "CinemaOTNode.h" 
+      $$ lines 
+      =$ parserSink
+      
+   forM_ nameValues $ \(name, value) -> do
+      Data.ByteString.putStr name
+      Prelude.putStr ": "
+      Data.ByteString.putStrLn value
+      
+      
+data SinkResult = SinkResult 
+   {
+      srDefines :: Map.Map ByteString ByteString,
+      srNameValues :: [(ByteString, ByteString)]
+   }
+
+
+parserSink :: Monad m => Sink ByteString m SinkResult
+parserSink = fold step emptySinkResult
+   where
+      emptySinkResult = SinkResult Map.empty []
+   
+      step prevSinkResult@(SinkResult defines nameValues) line = 
+         case parse (parseLine defines) line of
+            Done _ (StringDefine name value) -> prevSinkResult { srDefines =  Map.insert name value defines }
+            Done _ (PairDef name value)      -> prevSinkResult { srNameValues = (name, value) : nameValues }
+            _                                -> prevSinkResult
+
 ------------------------------------------------------------------------------------------------------------------------
