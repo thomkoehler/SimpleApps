@@ -11,8 +11,13 @@ import System.IO(stdout)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as C
 import Text.Regex.Posix
+import Text.Regex.Base.RegexLike
 
 -----------------------------------------------------------------------------------------------------------------------
+
+regexBuildStarted :: Regex
+regexBuildStarted = makeRegex "------ Build started: Project: ([a-zA-z]*)"
+
 
 
 data BuildLogToken
@@ -43,9 +48,11 @@ parseBuildLogToken = concatMapAccum step ()
 
 parseLine :: B.ByteString -> BuildLogToken
 parseLine line =
-   case line =~ "------ Build started: Project: ([a-zA-z]*)" of
-      [_ : projectName : _] -> BuildStart projectName
-      _                     -> None
+   --case line =~ "------ Build started: Project: ([a-zA-z]*)" of
+   case matchOnce  regexBuildStarted line of
+      --[_ : projectName : _] -> BuildStart projectName
+      Just x -> BuildStart $ C.pack $ show x
+      Nothing -> None
 
 
 -----------------------------------------------------------------------------------------------------------------------
