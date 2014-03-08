@@ -18,13 +18,11 @@ regexBuildStarted :: Regex
 regexBuildStarted = makeRegex "------ Build started: Project: ([a-zA-z]*)"
 
 
-
 data BuildLogToken
    = BuildStart B.ByteString
    | BuildEnd Bool
    | None
    deriving Show
-
 
 
 main :: IO ()
@@ -35,35 +33,32 @@ main = runResourceT $
    =$ sinkHandle stdout
    where
       lines' = map (C.append (C.pack "\n"))
-
   
 
 parseBuildLogToken :: Monad m => Conduit B.ByteString m BuildLogToken
 parseBuildLogToken = concatMapAccum step ()
    where
       step line _ = 
-         case  regexParser regexs line of
+         case  regexParser line of
             BuildStart name -> ((), [BuildStart name])
             _               -> ((), [])
             
 
-regexs = 
-   [
-      ("^------ Build started: Project: ([a-zA-z]*)", BuildStart),
-      ("^\\*\\*\\*  Building ([a-zA-z]*)", BuildStart)
-   ]
-
-
-regexParser funs line = foldl step None funs
+regexParser :: B.ByteString -> BuildLogToken
+regexParser line = foldl step None regexs
    where
-      step prevToken (regex, createFun) = 
-         case prevToken of
-            None -> 
-               case line =~ regex of
-                  [_ : name : _] -> createFun name
-                  _              -> None
-               
-            _    -> prevToken
+      step prevToken fun = case prevToken of
+         None -> fun line
+         _    -> prevToken
+   
+      regexs = [parseBuildStarted, parseBuilding]
+   
+      parseBuildStarted l = case l =~ "^------ Build started: Project: ([a-zA-z]*)" of
+         [_ : name : _] -> BuildStart name   
+         _              -> None
          
+      parseBuilding l = case l =~ "^\\*\\*\\*  Building ([a-zA-z]*)" of
+         [_ : name : _] -> BuildStart name   
+         _              -> None
 
 -----------------------------------------------------------------------------------------------------------------------
