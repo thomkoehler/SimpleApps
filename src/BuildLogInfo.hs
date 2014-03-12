@@ -13,7 +13,7 @@ import System.IO(stdout)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as C
 import Data.Attoparsec.ByteString as AB
-import Data.Attoparsec.ByteString.Char8
+import Data.Attoparsec.ByteString.Char8 as AC 
 
 -----------------------------------------------------------------------------------------------------------------------
 
@@ -40,15 +40,18 @@ parseBuildLogTokens = concatMapAccum step ()
 parseBuildLogToken :: Parser BuildLogToken
 parseBuildLogToken = choice 
    [
-      parseBuildEnd0,
-      parseBuildStart0,
-      parseBuildEnd1, 
-      parseBuildStart1
+      parseBuildStartVS,
+      parseBuildStart1,
+      parseBuildStartBorland,
+      parseBuildEndVS,
+      parseBuildSuccessBorland,
+      parseBuildFailedBorland 
    ]
 
 
-parseBuildStart0 :: Parser BuildLogToken
-parseBuildStart0 = do
+parseBuildStartVS :: Parser BuildLogToken
+parseBuildStartVS = do
+   option () (intDecimal >> char '>' >> return ())
    _ <- string "------ Build started: Project: "
    name <- identifier
    return $ BuildStart $ name
@@ -62,11 +65,22 @@ parseBuildStart1 = do
    return $ BuildStart $ name
 
 
-parseBuildEnd0 :: Parser BuildLogToken
-parseBuildEnd0 = do
+parseBuildStartBorland :: Parser BuildLogToken
+parseBuildStartBorland = do
+   _ <- "Project"
+   skipSpace
+   projectPath <- stringLiteral
+   _ <- " on node "
+   _ <- intDecimal
+   _ <- string " (default targets)."
+   return $ BuildStart $ projectPath
+   
+
+parseBuildEndVS :: Parser BuildLogToken
+parseBuildEndVS = do
    _ <- string "========== Build:"
    skipSpace
-   _ :: Int <- decimal
+   _ <- intDecimal
    skipSpace
    _ <- string "succeeded,"
    skipSpace
@@ -74,10 +88,16 @@ parseBuildEnd0 = do
    return $ BuildEnd $ failed == 0 
 
 
-parseBuildEnd1 :: Parser BuildLogToken
-parseBuildEnd1 = do
+parseBuildSuccessBorland :: Parser BuildLogToken
+parseBuildSuccessBorland = do
    _ <- string "Build succeeded."
-   return $ BuildEnd True  
+   return $ BuildEnd True
+   
+   
+parseBuildFailedBorland :: Parser BuildLogToken
+parseBuildFailedBorland = do
+   _ <- string "Build FAILED."
+   return $ BuildEnd False    
 
    
 identifier :: Parser B.ByteString
@@ -85,12 +105,24 @@ identifier = do
    AB.takeWhile $ AB.inClass "A-Za-z0-9_."
 
 
+intDecimal :: Parser Int
+intDecimal = decimal
+
+
+stringLiteral :: Parser B.ByteString
+stringLiteral = do
+   _ <- char '"'
+   str <- AC.takeWhile (/= '"') 
+   _ <- char '"'
+   return str
+
+
 main :: IO ()
 main = do
       putStrLn "..."
    
       runResourceT $ 
-         sourceFile "build_log_7.0.txt" 
+         sourceFile "build_log_7.1.txt" 
          $$ lines 
          =$ (parseBuildLogTokens  =$= map (C.pack . show)) =$= lines'
          =$ sinkHandle stdout
