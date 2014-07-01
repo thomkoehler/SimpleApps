@@ -12,6 +12,7 @@ executable ScanInclude
   hs-source-dirs:  src
   ghc-options:     -Wall -rtsopts -O2
   main-is:         ScanInclude.hs
+  other-modules:   DBInsertGen
 
 executable ClearGenFiles
   hs-source-dirs:  src
